@@ -1,0 +1,11 @@
+{
+  "package": "magpie-edgeone",
+  "name": "EdgeOne DeepSeek 沙盒",
+  "providers": [
+    "dsh2api"
+  ],
+  "summary": {
+    "en": "Anonymous DeepSeek Harness (EdgeOne Makers) access: install and use, no key, 9 models with streaming and tool-call bridging.",
+    "zh": "匿名接入 DeepSeek Harness：装完即用、无需密钥，9 个模型，支持流式与工具调用桥接。"
+  }
+}

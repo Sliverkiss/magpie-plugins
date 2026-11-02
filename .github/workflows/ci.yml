@@ -1,0 +1,49 @@
+name: check
+
+# PR 的必需门禁：合规、语义测试、实际打包清单全部通过才允许合并。
+# 测试不是可选步骤；这里不提交、不发布，也不写默认分支。
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 供应商插件规定
+        run: |
+          set -euo pipefail
+          if node -e "process.exit(require('./package.json').scripts?.['check:template'] ? 0 : 1)"; then
+            npm run check:template
+          else
+            node scripts/check.mjs
+          fi
+
+      - name: 语义测试
+        run: npm test
+
+      - name: 打包面预演
+        run: npm pack --dry-run
+
+  action-self-test:
+    # 外部用户用的就是这一个复合动作；本仓库先自己用它检查自己。
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/check
+        with:
+          target: .
+          template: "true"

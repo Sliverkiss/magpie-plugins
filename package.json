@@ -1,0 +1,50 @@
+{
+  "name": "magpie-edgeone",
+  "version": "0.5.0",
+  "description": "EdgeOne DeepSeek Harness provider plugin for magpie / OpenCode: anonymous, install-and-use chat with tool-call bridging over a fenced protocol — no key, no login.",
+  "type": "module",
+  "main": "./index.mjs",
+  "exports": "./index.mjs",
+  "files": [
+    "index.mjs",
+    "src",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "registry-entry.json",
+    "tests",
+    "scripts"
+  ],
+  "keywords": [
+    "magpie",
+    "magpie-plugin",
+    "opencode",
+    "opencode-plugin",
+    "opencode-auth",
+    "provider",
+    "deepseek",
+    "edgeone",
+    "keyless",
+    "tool-call"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sliverkiss/magpie-plugins.git",
+    "directory": "magpie-edgeone"
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "magpie": {
+    "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjggMTI4Ij48cmVjdCB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgcng9IjI4IiBmaWxsPSIjMWYyOTM3Ii8+PHRleHQgeD0iNjQiIHk9Ijg0IiBmb250LXNpemU9IjU4IiBmb250LWZhbWlseT0ic3lzdGVtLXVpLHNhbnMtc2VyaWYiIGZvbnQtd2VpZ2h0PSI3MDAiIGZpbGw9IiM0YWRlODAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkQ8L3RleHQ+PC9zdmc+",
+    "maxConcurrency": 4,
+    "name": "EdgeOne DeepSeek 沙盒"
+  },
+  "scripts": {
+    "test": "node --test",
+    "check": "node scripts/check.mjs",
+    "score": "node scripts/score.mjs",
+    "publish:npm": "node scripts/publish-npm.mjs"
+  }
+}

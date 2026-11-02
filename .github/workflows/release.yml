@@ -1,0 +1,172 @@
+name: release
+
+# 只允许发布「已经合进默认分支」的提交。
+# 推 v* tag 后先核对版本、祖先关系、合规、测试与打包清单，再建 Release / 发 npm。
+# CHANGELOG 是 Release 正文的唯一来源。
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 要重新生成正文的已有 tag，例如 v0.1.3
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: tag 必须对应 package.json，且提交已合进默认分支
+        env:
+          REF_NAME: ${{ inputs.tag || github.ref_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          expected="v$(node -p "require('./package.json').version")"
+          if [ "$REF_NAME" != "$expected" ]; then
+            echo "tag $REF_NAME 与 package.json 的版本 $expected 不一致" >&2
+            exit 1
+          fi
+          git fetch origin "$DEFAULT_BRANCH" --quiet
+          if ! git merge-base --is-ancestor HEAD "origin/$DEFAULT_BRANCH"; then
+            echo "这个 tag 的提交尚未合进 $DEFAULT_BRANCH，拒绝发布" >&2
+            exit 1
+          fi
+
+      - name: 发布前检查与测试
+        run: |
+          set -euo pipefail
+          if [ -f scripts/check.mjs ]; then
+            if node -e "process.exit(require('./package.json').scripts?.['check:template'] ? 0 : 1)"; then
+              npm run check:template
+            else
+              node scripts/check.mjs
+            fi
+          fi
+          if node -e "process.exit(require('./package.json').scripts?.test ? 0 : 1)"; then
+            npm test
+          elif compgen -G 'tests/*.test.mjs' > /dev/null; then
+            node --test tests/*.test.mjs
+          elif [ -f tests/smoke.mjs ]; then
+            node tests/smoke.mjs
+          else
+            echo "没有可自动运行的语义测试" >&2
+            exit 1
+          fi
+          npm pack --dry-run
+
+  release:
+    runs-on: ubuntu-latest
+    needs: verify
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: 从 CHANGELOG.md 抽出这个版本的条目
+        env:
+          REF_NAME: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          ver="${REF_NAME#v}"
+          if [ ! -f CHANGELOG.md ]; then
+            echo "没有 CHANGELOG.md，拒绝建空 Release" >&2
+            exit 1
+          fi
+          awk -v ver="$ver" '
+            /^## / {
+              if (f) exit
+              if (substr($0, 4, length(ver)) == ver) { f = 1; next }
+            }
+            f { print }
+          ' CHANGELOG.md | sed '/^[[:space:]]*$/d' > notes.md
+          if [ ! -s notes.md ]; then
+            echo "CHANGELOG.md 里没有 $ver 这一节，拒绝建空 Release" >&2
+            exit 1
+          fi
+          echo "--- Release 正文 ---"
+          cat notes.md
+
+      - name: 建 Release（已存在则刷新正文）
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF_NAME: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          if gh release view "$REF_NAME" >/dev/null 2>&1; then
+            gh release edit "$REF_NAME" \
+              --title "$REF_NAME" \
+              --notes-file notes.md \
+              --draft=false
+          else
+            gh release create "$REF_NAME" \
+              --title "$REF_NAME" \
+              --notes-file notes.md
+          fi
+
+  npm:
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error title=NPM_TOKEN 未配置::在仓库 Settings → Secrets and variables → Actions 加 NPM_TOKEN；没有它 npm 步骤不能假装成功"
+            echo "✗ 缺少 NPM_TOKEN：npm 发布门禁失败（不是跳过）" >&2
+            exit 1
+          fi
+          VERSION=$(node -p "require('./package.json').version")
+          NPM_NAME=$(node scripts/npm-name.mjs)
+          # 本地 release.mjs --npm 可能已经发过同一版；tag 推上来后 CI 再发会 E409。
+          # 同版本已存在 = 发布已完成，跳过且不把 workflow 弄红。
+          if npm view "$NPM_NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "::warning title=npm 版本已存在::$NPM_NAME@$VERSION 已在 npm；跳过重复发布"
+            exit 0
+          fi
+          set +e
+          if [ -f scripts/publish-npm.mjs ]; then
+            node scripts/publish-npm.mjs
+          else
+            npm publish --access public
+          fi
+          code=$?
+          set -e
+          if [ "$code" -ne 0 ]; then
+            # 发布刚完成时 npm view 可能还看不到（staged），publish 会 E409；
+            # 等 5 秒再确认，同版本已在 npm 就当成功，不把 workflow 弄红。
+            sleep 5
+            if npm view "$NPM_NAME@$VERSION" version >/dev/null 2>&1; then
+              echo "::warning title=npm 版本已存在::$NPM_NAME@$VERSION 已发布；按成功处理"
+              exit 0
+            fi
+            exit "$code"
+          fi
