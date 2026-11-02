@@ -194,7 +194,10 @@ if (pkg) {
      "publish-npm 脚本存在",
      "有 publish:npm 脚本但没有文件，npm run publish:npm 会直接失败",
      "从脚手架复制 scripts/publish-npm.mjs，改 PUBLISH_AS 为 npm 包名")
-  const releaseYml = join(ROOT, ".github", "workflows", "release.yml")
+  // 多插件仓库里 workflow 在仓库根（插件目录的上级）；单插件仓库里就在本目录。
+  const releaseYml = [join(ROOT, ".github", "workflows", "release.yml"),
+                      join(ROOT, "..", ".github", "workflows", "release.yml")]
+    .find((f) => existsSync(f))
   if (existsSync(releaseYml)) {
     const releaseSrc = readFileSync(releaseYml, "utf8")
     ok(/NPM_TOKEN/.test(releaseSrc),
