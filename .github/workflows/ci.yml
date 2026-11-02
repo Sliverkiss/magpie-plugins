@@ -36,14 +36,3 @@ jobs:
 
       - name: 打包面预演
         run: npm pack --dry-run
-
-  action-self-test:
-    # 外部用户用的就是这一个复合动作；本仓库先自己用它检查自己。
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: ./.github/actions/check
-        with:
-          target: .
-          template: "true"

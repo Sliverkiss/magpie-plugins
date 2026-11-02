@@ -46,5 +46,6 @@
     "check": "node scripts/check.mjs",
     "score": "node scripts/score.mjs",
     "publish:npm": "node scripts/publish-npm.mjs"
-  }
+  },
+  "author": "Sliverkiss"
 }

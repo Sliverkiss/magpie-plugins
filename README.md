@@ -1,5 +1,7 @@
 # magpie-edgeone · EdgeOne DeepSeek 沙盒
 
+> 作者：[Sliverkiss](https://github.com/Sliverkiss)
+
 一个 **无需密钥** 的 [magpie](https://github.com/MYCF711/magpie-plugin-scaffold) / OpenCode 供应商插件：把 [DeepSeek Harness](https://deepseek-harness.edgeone.cool)（EdgeOne Makers 上的免费匿名智能体沙盒）桥接成 OpenAI 兼容的 `/chat/completions`。安装、启用、对话——三步，没有账号、没有 token、没有额度页。
 
 ## 特性
