@@ -31,7 +31,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Sliverkiss/magpie-plugins.git",
-    "directory": "magpie-edgeone"
+    "directory": "edgeone"
   },
   "engines": {
     "node": "^22.19.0 || >=24.0.0"
